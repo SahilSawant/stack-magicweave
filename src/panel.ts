@@ -16,7 +16,8 @@ const css = `
 .mw-badge{position:fixed;z-index:3;display:flex;justify-content:center;
   pointer-events:none;font:500 12px/1.4 system-ui,sans-serif}
 .mw-badge span{background:rgba(10,8,30,.82);color:#ffb4a2;border:1px solid rgba(255,180,162,.28);
-  border-radius:999px;padding:4px 12px}
+  border-radius:999px;padding:4px 12px;max-width:100%;box-sizing:border-box;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .mw-badge.ok span{color:#b2ebf2;border-color:rgba(178,235,242,.24)}
 .mw-wallet{position:fixed;z-index:3;pointer-events:none;font:600 13px/1 system-ui,sans-serif;
   color:#ffe082;background:rgba(10,8,30,.82);border-radius:999px;padding:6px 12px}
@@ -115,6 +116,9 @@ function paintBadge(s: Snapshot): void {
     // theirs alone, and a developer who sees it knows which of the three
     // strings is missing.
     span.textContent = `playing offline — scores are not saved (${s.reason})`;
+    // The clamp above can hide the tail of a long reason, so keep the whole of
+    // it reachable rather than only in the game-over sheet.
+    span.title = s.reason;
     badge.style.display = "flex";
   } else {
     badge.style.display = "none";
