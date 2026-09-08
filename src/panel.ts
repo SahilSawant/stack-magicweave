@@ -22,7 +22,7 @@ const css = `
   color:#ffe082;background:rgba(10,8,30,.82);border-radius:999px;padding:6px 12px}
 .mw-sheet{position:fixed;z-index:4;box-sizing:border-box;display:none;flex-direction:column;gap:10px;
   background:rgba(10,8,30,.94);border:1px solid rgba(255,255,255,.09);border-radius:14px;
-  padding:14px;color:#e0f7fa;font:400 13px/1.5 system-ui,sans-serif;max-height:46vh;overflow-y:auto}
+  padding:14px;color:#e0f7fa;font:400 13px/1.5 system-ui,sans-serif;overflow-y:auto}
 .mw-sheet.show{display:flex}
 .mw-earn{font:700 15px/1 system-ui,sans-serif;color:#ffe082}
 .mw-row{display:flex;justify-content:space-between;gap:12px}
@@ -79,7 +79,11 @@ export function layoutPanel(canvas: HTMLCanvasElement): void {
   wallet.style.top = `${r.top + 78}px`;
   sheet.style.left = `${r.left + 12}px`;
   sheet.style.width = `${r.width - 24}px`;
-  sheet.style.bottom = `${window.innerHeight - r.bottom + 12}px`;
+  // The lane between the canvas's game-over block, which now ends around 0.5,
+  // and the RETRY button at 0.9. Sized from the canvas rather than the viewport
+  // for the same reason as everything else here: the canvas is letterboxed.
+  sheet.style.bottom = `${window.innerHeight - r.bottom + r.height * 0.115}px`;
+  sheet.style.maxHeight = `${Math.round(r.height * 0.36)}px`;
 }
 
 /** Show the platform sheet on the game-over screen, and nowhere else. */

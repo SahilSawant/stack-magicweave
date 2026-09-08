@@ -1,4 +1,4 @@
-name: Deploy to Pages
+name: Build and deploy
 
 on:
   push:
@@ -13,6 +13,15 @@ permissions:
 concurrency:
   group: pages
   cancel-in-progress: true
+
+# Publishing is gated on a repository variable rather than always attempted.
+# Pages cannot serve from a private repository on a free plan, so an
+# unconditional configure-pages step fails on every push and a red tick stops
+# meaning anything. The build always runs; publishing waits to be switched on:
+#
+#   gh variable set PAGES_ENABLED --body true --repo <owner>/<repo>
+env:
+  PAGES: ${{ vars.PAGES_ENABLED }}
 
 jobs:
   build:
@@ -31,13 +40,18 @@ jobs:
           VITE_MW_EDGE_URL: ${{ secrets.VITE_MW_EDGE_URL }}
           VITE_MW_CLIENT_ID: ${{ secrets.VITE_MW_CLIENT_ID }}
           VITE_MW_CLIENT_SECRET: ${{ secrets.VITE_MW_CLIENT_SECRET }}
-      - uses: actions/configure-pages@v5
-      - uses: actions/upload-pages-artifact@v3
+      - if: env.PAGES != 'true'
+        run: echo "::notice::Built. Pages publishing is off — set the PAGES_ENABLED repository variable to turn it on."
+      - if: env.PAGES == 'true'
+        uses: actions/configure-pages@v5
+      - if: env.PAGES == 'true'
+        uses: actions/upload-pages-artifact@v3
         with:
           path: dist
 
   deploy:
     needs: build
+    if: vars.PAGES_ENABLED == 'true'
     runs-on: ubuntu-latest
     environment:
       name: github-pages

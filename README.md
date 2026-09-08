@@ -77,9 +77,26 @@ score — which is what `progression/games/stack.yaml` is for.
 
 ## Deploying
 
-`.github/workflows/pages.yml` builds and publishes to GitHub Pages on a push to
-`main`. Pages serving from a private repository requires a paid GitHub plan; on
-a free plan, make the repository public or host `dist/` anywhere static.
+`.github/workflows/pages.yml` builds on every push to `main`. Publishing is
+gated on a repository variable, because Pages cannot serve from a private
+repository on a free plan and an unconditional deploy step turns every push
+red:
+
+```sh
+# once Pages is actually available for this repository
+gh variable set PAGES_ENABLED --body true
+```
+
+To make it available: `gh repo edit --visibility public
+--accept-visibility-change-consequences`, then
+`gh api -X POST repos/<owner>/<repo>/pages -f build_type=workflow`. Or host
+`dist/` on anything static — the build has no server side.
+
+Note that `VITE_MW_EDGE_URL` has to be an address the *player's* browser can
+reach. Pointed at `localhost`, a deployed build reaches nobody's platform but
+your own machine's, and every visitor gets the offline state — correctly, and
+visibly. A hosted edge also has to allow the page's origin: `MW_CORS_ORIGINS`
+is an explicit allowlist and never a wildcard.
 
 Vite is configured with `base: "./"`, so `dist/` works from any
 subdirectory — including a Pages project URL.
@@ -91,6 +108,7 @@ subdirectory — including a Pages project URL.
     src/panel.ts     the platform on screen, including the offline state
     src/shape.ts     the portrait letterbox
     src/tunables.ts  numbers readable from public/tunables.json without a rebuild
+                     — slider speed, the perfect window, width recovery, ramp
     vendor/          the v2 SDK, packed from source (see below)
 
 The `@magicweave/sdk` on npm is the **v1** SDK and does not speak to this

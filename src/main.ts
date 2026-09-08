@@ -1,5 +1,6 @@
 // STACK — core game logic and render loop
 import { stageBox, SHAPE } from "./shape";
+import { loadTunables } from "./tunables";
 import { perfectDrop, runFinished, runStarted } from "./platform";
 import { layoutPanel, mountPanel, showSheet } from "./panel";
 
@@ -24,13 +25,13 @@ window.addEventListener("resize", () => {
 resize();
 
 // ─── constants ───────────────────────────────────────────────────────────────
-const PERFECT_THRESHOLD = 6;      // px: left-edge offset within this = PERFECT
+let PERFECT_THRESHOLD = 6;        // px: left-edge offset within this = PERFECT
 const BLOCK_H = 28;               // height of each block in world-px
 const INITIAL_W = 180;            // starting block width (world-px)
 const MIN_W = 14;                 // below this the run ends
-const RECOVER_PX = 4;             // width gained on a perfect drop
-const BASE_SPEED = 2.8;           // slider speed at height 0 (world-px / frame)
-const SPEED_STEP = 0.018;         // extra speed per height level
+let RECOVER_PX = 4;               // width gained on a perfect drop
+let BASE_SPEED = 2.8;             // slider speed at height 0 (world-px / frame)
+let SPEED_STEP = 0.018;           // extra speed per height level
 const MAX_SPEED = 11;
 const TOWER_ANCHOR_Y_FRAC = 0.38; // top of the tower sits here (fraction of canvas height)
 const FLOOR_BLOCKS = 3;           // pre-seeded solid base blocks
@@ -445,14 +446,14 @@ function drawGameOver(W: number, H: number) {
   ctx.fillStyle = "rgba(10,8,30,0.9)";
   ctx.fillRect(0, 0, W, H);
 
-  const midY = H * 0.42;
+  const midY = H * 0.30;
 
   // Title
   ctx.fillStyle = "#b2ebf2";
   ctx.font = `bold ${Math.round(W * 0.11)}px system-ui,sans-serif`;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  ctx.fillText("STACK", W / 2, H * 0.2);
+  ctx.fillText("STACK", W / 2, H * 0.14);
 
   // Score
   ctx.fillStyle = "#e0f7fa";
@@ -486,7 +487,7 @@ function drawGameOver(W: number, H: number) {
   const btnW = W * 0.58;
   const btnH = H * 0.072;
   const btnX = (W - btnW) / 2;
-  const btnY = H * 0.79;
+  const btnY = H * 0.9;
 
   ctx.fillStyle = "#b2ebf2";
   ctx.beginPath();
@@ -537,7 +538,30 @@ function loop(ts: number) {
   requestAnimationFrame(loop);
 }
 
-mountPanel();
-layoutPanel(canvas);
-initGame();
-requestAnimationFrame(loop);
+/**
+ * Boot.
+ *
+ * The tunables are read before the first frame so a value from
+ * public/tunables.json is the one the first run plays with. The file is
+ * optional — a 404 leaves the shipped feel exactly as it is — which is why the
+ * whole of this is allowed to be a fire-and-forget await.
+ */
+async function boot() {
+  const t = await loadTunables({
+    sliderSpeed: { value: BASE_SPEED, min: 0.4, max: 8, step: 0.1 },
+    perfectPx: { value: PERFECT_THRESHOLD, min: 1, max: 30, step: 1 },
+    recoverPx: { value: RECOVER_PX, min: 0, max: 20, step: 1 },
+    speedStep: { value: SPEED_STEP, min: 0, max: 0.2, step: 0.002 },
+  });
+  BASE_SPEED = t.sliderSpeed;
+  PERFECT_THRESHOLD = t.perfectPx;
+  RECOVER_PX = t.recoverPx;
+  SPEED_STEP = t.speedStep;
+
+  mountPanel();
+  layoutPanel(canvas);
+  initGame();
+  requestAnimationFrame(loop);
+}
+
+void boot();
