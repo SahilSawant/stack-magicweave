@@ -131,8 +131,13 @@ function paintWallet(s: Snapshot): void {
 }
 
 function paintSheet(s: Snapshot): void {
+  if (s.status === "connecting") {
+    sheet.innerHTML = `<div class="mw-note">Still connecting — this run will not be recorded if it does not.</div>`;
+    return;
+  }
   if (s.status !== "online") {
-    sheet.innerHTML = `<div class="mw-note">Offline — this run was not recorded. ${s.reason}.</div>`;
+    const why = s.reason ? ` ${s.reason}.` : "";
+    sheet.innerHTML = `<div class="mw-note">Offline — this run was not recorded.${why}</div>`;
     return;
   }
   const rows = s.weekly.length

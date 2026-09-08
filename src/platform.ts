@@ -117,18 +117,59 @@ function idem(): { header: { "Idempotency-Key": string } } {
   return { header: { "Idempotency-Key": crypto.randomUUID() } };
 }
 
+/** How long connecting may take before it is reported as not working. */
+const CONNECT_TIMEOUT_MS = 8000;
+
+/**
+ * Why this build cannot reach the platform, decided before trying.
+ *
+ * Only the checks that are certain. A page served over HTTPS cannot call an
+ * HTTP address at all — the browser blocks it as mixed content, and the SDK's
+ * retries then spend their whole backoff on a request that was never going to
+ * leave. That is worth naming, because the deployed symptom is a badge stuck on
+ * "connecting…" and the cause is one wrong scheme in one build argument.
+ */
+function refuseUpFront(): string | null {
+  if (!CLIENT_ID || !CLIENT_SECRET) return "no key was built in";
+  let edge: URL;
+  try {
+    edge = new URL(EDGE);
+  } catch {
+    return `VITE_MW_EDGE_URL is not a URL: ${EDGE}`;
+  }
+  const localHost = edge.hostname === "localhost" || edge.hostname === "127.0.0.1";
+  if (location.protocol === "https:" && edge.protocol === "http:") {
+    return localHost
+      ? "this page is HTTPS and the edge is a local HTTP address, which no browser will call"
+      : "this page is HTTPS and the edge URL is HTTP, so the browser blocks the call";
+  }
+  return null;
+}
+
 export const ready: Promise<void> = (async () => {
-  if (!CLIENT_ID || !CLIENT_SECRET) {
-    offline("no key was built in");
+  const refusal = refuseUpFront();
+  if (refusal) {
+    offline(refusal);
     return;
   }
   try {
-    mw = await connect({
-      baseUrl: EDGE,
-      clientId: CLIENT_ID,
-      clientSecret: CLIENT_SECRET,
-      signIn: { provider: "guest", identifier: deviceId() },
-    });
+    // Bounded. Without this the badge can sit on "connecting…" for as long as
+    // the transport keeps retrying, which reads as "working, slowly" rather
+    // than "not working" — the exact ambiguity this module exists to remove.
+    mw = await Promise.race([
+      connect({
+        baseUrl: EDGE,
+        clientId: CLIENT_ID,
+        clientSecret: CLIENT_SECRET,
+        signIn: { provider: "guest", identifier: deviceId() },
+      }),
+      new Promise<never>((_, reject) =>
+        setTimeout(
+          () => reject(new Error(`no answer from ${EDGE} in ${CONNECT_TIMEOUT_MS / 1000}s`)),
+          CONNECT_TIMEOUT_MS,
+        ),
+      ),
+    ]);
     snap.status = "online";
     snap.reason = "";
     changed();
